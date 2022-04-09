@@ -6,9 +6,10 @@ import { PdfData, Text } from './interfaces/pdf-data';
 
 const runner = async () => {
   const srcPath = `C:/Users/Dell/source/repos/pdf2table/`;
-  const pdfFilePath = `${srcPath}/samples/Axis_Bank_Sample_1.pdf`;
-  const jsonFilePath = `${srcPath}/output/Axis_Bank_Sample_1.json`;
-  const imageFilePath = `${srcPath}/output/Axis_Bank_Sample_1.png`;
+  const samples = ['Bank_Of_India_Sample_1', 'Axis_Bank_Sample_1']
+  const pdfFilePath = `${srcPath}/samples/${samples[0]}.pdf`;
+  const jsonFilePath = `${srcPath}/output/${samples[0]}.json`;
+  const imageFilePath = `${srcPath}/output/${samples[0]}.png`;
 
   log4js.configure({
     appenders: { console: { type: 'console' } },
