@@ -25,9 +25,11 @@ const runner = async () => {
     const parser = new TableParser(new PDFParser(), log4js.getLogger());
     const pdfFilePath = `${srcPath}/samples/${filename}.pdf`;
     const jsonFilePath = `${srcPath}/output/${filename}.json`;
+    const csvFilePath = `${srcPath}/output/${filename}.csv`;
     const imageFilePath = `${srcPath}/output/${filename}.png`;
     await parser.loadPdf(pdfFilePath);
-    await parser.saveJson(jsonFilePath);
+    await parser.saveJson(0, jsonFilePath);
+    await parser.saveCsv(0, csvFilePath);
     await parser.saveImage(0, imageFilePath);
   }
 

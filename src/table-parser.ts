@@ -4,7 +4,9 @@ import { Logger } from "log4js";
 import { promisify } from 'util';
 import { createCanvas, CanvasRenderingContext2D, Canvas } from 'canvas';
 import { PdfData, Text, Vline, Page, Hline } from './interfaces/pdf-data';
-
+import { Box, Point } from './interfaces/shape';
+import converter from 'json-2-csv';
+const json2csvPromise = promisify(converter.json2csv);
 const wrtieFilePromise = promisify(fs.writeFile);
 
 export interface PageLayout {
@@ -53,10 +55,36 @@ export class TableParser {
         return result;
     }
 
-    async saveJson(filePath: string): Promise<void> {
+    async saveJson(pageIndex:number, filePath: string): Promise<void> {
 
         try {
-            await wrtieFilePromise(filePath, JSON.stringify(this.pdfData));
+            const page = this.pdfData.Pages[pageIndex];            
+            await wrtieFilePromise(filePath, JSON.stringify(this.detectTable(page)));
+            return this.logger.info(`${filePath} saved!`);
+        } catch (err) {
+            return this.logger.error(err);
+        }
+    }
+
+    async saveCsv(pageIndex:number, filePath: string): Promise<void> {
+
+        try {
+            const page = this.pdfData.Pages[pageIndex];     
+            const data = this.detectTable(page).map(row=>row.map(col=>col.textContent));      
+            const headers = data[0];
+            data.shift();
+            const rows:any[] = []; 
+            for(let row of data) {
+                let index=0;
+                let rowData = {} as any;
+                for(let col of row) {
+                    rowData[headers[index]] = col;
+                    index++;
+                }
+                rows.push(rowData);
+            }
+            const csv = await (json2csvPromise(rows) as Promise<string>);
+            await wrtieFilePromise(filePath, csv);
             return this.logger.info(`${filePath} saved!`);
         } catch (err) {
             return this.logger.error(err);
@@ -73,22 +101,21 @@ export class TableParser {
         return canvas;
     }
 
-    drawText(canvas: Canvas, page:Page, text: Text) {
+    drawText(canvas: Canvas, page:Page, text: Text, color?:string) {
         const context = canvas.getContext('2d');
         const r = text.R[0];
         const fontSize = r.TS[1];
         const fontFaceId = r.TS[0];
         const textAlign = text.A as CanvasTextAlign;
         const font = `${(fontSize)}px ${PDFParser.fontFaceDict[fontFaceId]}`;
-        const color = '#000000';
         const rawText = decodeURIComponent(r.T);
-        const point = this.transform({x: text.x, y:text.y}, page);
+        const point = this.transform({x:text.x, y:text.y}, page);
         const wsw = this.transform({x:text.w, y:text.sw}, page); 
         const measureText = context.measureText(rawText);      
         const x = point.x;
         const y = point.y + measureText.actualBoundingBoxAscent + measureText.actualBoundingBoxDescent;
         const maxWidth = wsw.x;
-        context.fillStyle = color;
+        context.fillStyle = color?color:'#000000';
         context.font = font;       
         context.textAlign = textAlign;        
         context.textBaseline = 'middle';
@@ -116,7 +143,7 @@ export class TableParser {
     }
 
     getLineInfo(line:Hline, page:Page) {
-        const point = this.transform({x:line.x, y:line.y}, page);
+        const point = this.transform({x:line.x - (line.w /2), y:line.y - (line.w /2)}, page);
         const wl = this.transform({x:line.w, y:line.l}, page);
         return{
             point,
@@ -146,8 +173,8 @@ export class TableParser {
         return (info2.point.y + info2.wl.y) - info1.point.y;
     }
 
-    detectTopHLines(pageIndex:number, page:Page): Hline[] {
-        const groupByY = this.pdfData.Pages[pageIndex].HLines.reduce((prev,curr)=>{
+    detectTopHLines(page:Page): Hline[] {
+        const groupByY = page.HLines.reduce((prev,curr)=>{
             if(!prev[curr.y.toString()]) {
                 prev[curr.y.toString()] = [];
             }
@@ -167,16 +194,16 @@ export class TableParser {
         return result;
     }
 
-    detectLeftVLines(pageIndex:number, page:Page): Vline[] {
-        const groupByX = this.pdfData.Pages[pageIndex].VLines.reduce((prev,curr)=>{
+    detectLeftVLines(page:Page): Vline[] {
+        const groupByX = page.VLines.reduce((prev,curr)=>{
             if(!prev[curr.x.toString()]) {
                 prev[curr.x.toString()] = [];
             }
-            const lines:any[] = prev[curr.x.toString()];
+            const lines:Vline[] = prev[curr.x.toString()];
             lines.push(curr);
             if(lines.length > 2) {
-                const firstLine:Vline = lines[0];
-                const secLine:Vline = lines[1];
+                const firstLine = lines[0];
+                const secLine = lines[1];
                 const firstLineEnd = firstLine.y + firstLine.l;
                 if(firstLineEnd < secLine.y) lines.shift();
             }
@@ -195,14 +222,86 @@ export class TableParser {
         return result;
     }
 
+    detectBoxes(page:Page) {
+        var hlines = this.detectTopHLines(page);
+        var vlines = this.detectLeftVLines(page);
+        const boxes:Box[][] = [];
+        for(let vline of vlines) {
+            const row:Box[] = [];
+            for(let hline of hlines) {                
+                row.push({ x: hline.x - (hline.w/2), y:vline.y - (hline.w/2), w: hline.l, h: vline.l})
+            }    
+            row.sort((x,y)=>x.x - y.x);
+            boxes.push(row)
+        }
+        boxes.sort((x,y)=> x[0].y - y[0].y);
+        return boxes;
+    }
+
+    detectBoxesTransformed(page:Page):Box[][] {
+        var boxesArr = this.detectBoxes(page);
+        return boxesArr.map(boxes=>boxes.map(box=>{
+            return this.transformBox(box, page);
+        }));
+    }
+
+    private transformBox(box: Box, page: Page) {
+        const xy = this.transform({ x: box.x, y: box.y }, page);
+        const wh = this.transform({ x: box.w, y: box.h }, page);
+        return { x: xy.x, y: xy.y, w: wh.x, h: wh.y };
+    }
+
+
+    detectTable(page:Page) {
+        const boxesArr = this.detectBoxes(page);
+        const texts = page.Texts;
+        const table:{box:Box, texts:Text[], textContent:string}[][] = []
+        for(let boxes of boxesArr){
+            const row:{box:Box, texts:Text[], textContent:string}[]=[];
+            for(let box of boxes) {
+               
+               
+                const topLeft:Point = { x: box.x , y: box.y };
+                const topRight:Point = { x: box.x + box.w, y: box.y };
+                const bottomLeft:Point = { x: box.x, y: box.y + box.h };
+                const bottomRight:Point = { x: box.x + box.w, y: box.y + box.h };
+               
+                const textArr = texts.filter(text=>{
+                    
+                    const result = topLeft.x <= text.x && text.x < topRight.x && topLeft.y <= text.y && text.y < bottomLeft.y;
+                    return result;
+                });
+                textArr.sort((x,y)=>x.x - y.x);
+                textArr.sort((x,y)=>x.y - y.y);
+                const textContent = textArr.map(text=> decodeURIComponent(text.R[0].T).trim()).join(' ');
+                row.push({box, texts:textArr, textContent});
+            }
+            table.push(row)
+        }
+        return table;
+    }
+
+    drawBox(canvas:Canvas, box:Box, style?:string) {        
+        const context = canvas.getContext('2d');
+        context.strokeStyle = style? style : '#000000'
+        context.strokeRect(box.x, box.y, box.w, box.h);
+    }
+
     drawPage(pageIndex: number) {
         const canvas = this.getPageCanvas();
         const page = this.pdfData.Pages[pageIndex];
         page.Texts.forEach(text => this.drawText(canvas, page, text))
         page.VLines.forEach(line=>this.drawVLine(canvas, page, line));
         page.HLines.forEach(line=>this.drawHLine(canvas, page, line));
-        this.detectTopHLines(pageIndex, page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,0.5)'));
-        this.detectLeftVLines(pageIndex, page).forEach(line=>this.drawVLine(canvas, page, line, 'rgba(0,255,0,0.5)'));
+        this.detectTopHLines(page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,1)'));
+        this.detectLeftVLines(page).forEach(line=>this.drawVLine(canvas, page, line, 'rgba(0,255,0,1)'));
+        this.detectBoxesTransformed(page).forEach(boxArr=>boxArr.forEach(box=> this.drawBox(canvas, box, 'rgba(0,0,255,1)')))
+        const table = this.detectTable(page);
+        const row = table[0];
+        const col = row[0];
+        const transformedBox = this.transformBox(col.box, page);
+        this.drawBox(canvas, transformedBox,'rgba(0,0,255,1)');
+        col.texts.forEach(text=>this.drawText(canvas, page, text,'rgba(0,0,255,1)'));
         return canvas;
     }
 
