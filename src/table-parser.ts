@@ -85,12 +85,75 @@ export class TableParser {
         const point = this.transform({x: text.x, y:text.y}, page);
         const wsw = this.transform({x:text.w, y:text.sw}, page); 
         const measureText = context.measureText(rawText);      
-
+        const x = point.x;
+        const y = point.y + measureText.actualBoundingBoxAscent + measureText.actualBoundingBoxDescent;
+        const maxWidth = wsw.x;
         context.fillStyle = color;
         context.font = font;       
         context.textAlign = textAlign;        
         context.textBaseline = 'middle';
-        context.fillText(rawText, point.x, point.y + measureText.actualBoundingBoxAscent + measureText.actualBoundingBoxDescent, wsw.x);
+        context.fillText(rawText, x, y, maxWidth);
+    }
+
+    drawVLine(canvas: Canvas, page:Page, line: Vline) {
+        const context = canvas.getContext('2d');
+        context.strokeStyle = 'rgba(0,0,0,0.5)';
+        context.beginPath();
+        const { point, wl } = this.getLineInfo(line, page);
+        context.lineTo(point.x, point.y);
+        context.lineTo(point.x, point.y + wl.y);
+        context.stroke();
+    }
+
+    drawHLine(canvas: Canvas, page:Page, line: Hline, style?:string) {
+        const context = canvas.getContext('2d');
+        context.strokeStyle = style?style:'rgba(0,0,0,0.5)';
+        context.beginPath();
+        const { point, wl } = this.getLineInfo(line, page);
+        context.lineTo(point.x, point.y);
+        context.lineTo(point.x + wl.y, point.y);
+        context.stroke();
+    }
+
+    getLineInfo(line:Hline, page:Page) {
+        const point = this.transform({x:line.x, y:line.y}, page);
+        const wl = this.transform({x:line.w, y:line.l}, page);
+        return{
+            point,
+            wl
+        };
+    }
+
+    getLength (lines:Hline[], page:Page) {
+        if(lines.length == 0) return 0;
+        const linesCopy = [...lines];
+        linesCopy.sort((x,y)=>x.x - y.x);
+        const line1 = linesCopy[0];
+        const line2 = linesCopy[linesCopy.length-1];
+        const info1 = this.getLineInfo(line1, page);
+        const info2 = this.getLineInfo(line2, page);
+        return (info2.point.x + info2.wl.y) - info1.point.x;
+    }
+
+    detectTopHLines(pageIndex:number, page:Page): Hline[] {
+        const groupByY = this.pdfData.Pages[pageIndex].HLines.reduce((prev,curr)=>{
+            if(!prev[curr.y.toString()]) {
+                prev[curr.y.toString()] = [];
+            }
+            prev[curr.y].push(curr);
+            return prev;
+        },{} as any);
+        const yList = Object.keys(groupByY).map((value)=>({key:parseFloat(value), value:groupByY[value]}));        
+        yList.sort((x,y)=>{
+            const xLength = this.getLength(x.value as Hline[], page);
+            const yLength = this.getLength(y.value as Hline[], page);
+            return xLength - yLength;
+        });
+        const averageLine = yList[Math.floor(yList.length/2)];
+        const averageLineLength = this.getLength(averageLine.value as Hline[], page);
+        yList.sort((x,y)=>x.key - y.key);
+        const result = yList.find(v=>this.getLength(v.value as Hline[],page) == averageLineLength)?.value;
+        return result;
     }
 
     drawPage(pageIndex: number) {
@@ -99,31 +162,9 @@ export class TableParser {
         page.Texts.forEach(text => this.drawText(canvas, page, text))
         page.VLines.forEach(line=>this.drawVLine(canvas, page, line));
         page.HLines.forEach(line=>this.drawHLine(canvas, page, line));
+        this.detectTopHLines(pageIndex, page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,0.5)'));
         return canvas;
     }
-
-    drawVLine(canvas: Canvas, page:Page, line: Vline) {
-        const context = canvas.getContext('2d');
-        context.strokeStyle = 'rgba(0,0,0,0.5)';
-        context.beginPath();
-        const point = this.transform({x:line.x, y:line.y}, page);
-        const wl = this.transform({x:line.w, y:line.l}, page);
-        context.lineTo(point.x, point.y);
-        context.lineTo(point.x, point.y + wl.y);
-        context.stroke();
-    }
-
-    drawHLine(canvas: Canvas, page:Page, line: Hline) {
-        const context = canvas.getContext('2d');
-        context.strokeStyle = 'rgba(0,0,0,0.5)';
-        context.beginPath();
-        const point = this.transform({x:line.x, y:line.y}, page);
-        const wl = this.transform({x:line.w, y:line.l}, page);
-        context.lineTo(point.x, point.y);
-        context.lineTo(point.x + wl.y, point.y);
-        context.stroke();
-    }
-
 
     async saveImage(pageIndex: number, filePath: string): Promise<void> {
         const canvas = this.drawPage(pageIndex);
