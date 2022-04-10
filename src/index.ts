@@ -5,25 +5,36 @@ import { TableParser } from './table-parser';
 import { PdfData, Text } from './interfaces/pdf-data';
 
 const runner = async () => {
-  const srcPath = `C:/Users/Dell/source/repos/pdf2table/`;
-  const samples = ['Bank_Of_India_Sample_1', 'Axis_Bank_Sample_1']
-  const pdfFilePath = `${srcPath}/samples/${samples[0]}.pdf`;
-  const jsonFilePath = `${srcPath}/output/${samples[0]}.json`;
-  const imageFilePath = `${srcPath}/output/${samples[0]}.png`;
-
+  //configure logger
   log4js.configure({
     appenders: { console: { type: 'console' } },
-    categories: { default: { appenders: [ 'console' ], level: 'info' } }
+    categories: { default: { appenders: ['console'], level: 'info' } }
   });
 
-  const parser = new TableParser(new PDFParser(), log4js.getLogger());
-  await parser.loadPdf(pdfFilePath);
-  await parser.saveJson(jsonFilePath);
-  await parser.saveImage(0, imageFilePath);
+ 
+
+  //src folder
+  const srcPath = `C:/Users/Dell/source/repos/pdf2table/`;
+
+  //file list
+  const filenames = ['Bank_Of_India_Sample_1', 'Axis_Bank_Sample_1'];
+
+  //parse files
+  for (let filename of filenames) {
+     //init parser
+    const parser = new TableParser(new PDFParser(), log4js.getLogger());
+    const pdfFilePath = `${srcPath}/samples/${filename}.pdf`;
+    const jsonFilePath = `${srcPath}/output/${filename}.json`;
+    const imageFilePath = `${srcPath}/output/${filename}.png`;
+    await parser.loadPdf(pdfFilePath);
+    await parser.saveJson(jsonFilePath);
+    await parser.saveImage(0, imageFilePath);
+  }
+
 }
 
 
 runner()
-  .then(()=>console.log("END"))
-  .catch((err)=> console.log(err))
+  .then(() => console.log("END"))
+  .catch((err) => console.log(err))
 

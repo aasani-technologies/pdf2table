@@ -17,9 +17,9 @@ export class TableParser {
 
     pdfData: PdfData;
     pageLayout: PageLayout = {
-        width: 2480,
-        height: 3508,
-        resolution: 72
+        width: 8,
+        height: 12,
+        resolution: 96
     }
 
     constructor(private pdfParser: PDFParser, private logger: Logger) {
@@ -28,8 +28,8 @@ export class TableParser {
 
     transform(data:{x:number, y:number}, page:Page) {
         return({
-            x: data.x * ((this.pageLayout.width) / page.Width),
-            y: data.y * ((this.pageLayout.height) / page.Height)
+            x: data.x * ((this.pageLayout.width * this.pageLayout.resolution) / page.Width),
+            y: data.y * ((this.pageLayout.height * this.pageLayout.resolution) / page.Height)
         });
     }
 
@@ -64,10 +64,12 @@ export class TableParser {
     }
 
     getPageCanvas() {        
-        const canvas = createCanvas(this.pageLayout.width, this.pageLayout.height);
+        const width = this.pageLayout.width * this.pageLayout.resolution;
+        const height = this.pageLayout.height  * this.pageLayout.resolution;
+        const canvas = createCanvas(width, height);
         const context = canvas.getContext('2d');
         context.fillStyle = '#ffffff'
-        context.fillRect(0, 0, this.pageLayout.width, this.pageLayout.height);
+        context.fillRect(0, 0, width, height);
         return canvas;
     }
 
@@ -75,15 +77,20 @@ export class TableParser {
         const context = canvas.getContext('2d');
         const r = text.R[0];
         const fontSize = r.TS[1];
-        context.fillStyle = '#000000';
-        context.font = `${fontSize * 2}pt sans-serif`;
-        context.textAlign = text.A as CanvasTextAlign;
-        const rawText = r.T.replace(/%20/g, '').trim();
+        const fontFaceId = r.TS[0];
+        const textAlign = text.A as CanvasTextAlign;
+        const font = `${(fontSize)}px ${PDFParser.fontFaceDict[fontFaceId]}`;
+        const color = '#000000';
+        const rawText = decodeURIComponent(r.T);
         const point = this.transform({x: text.x, y:text.y}, page);
-        const depth = this.transform({x:text.w, y:text.sw}, page);
-        const offsetY = (this.pageLayout.width/this.pageLayout.height) * 50;
-        const offsetX = (this.pageLayout.width/this.pageLayout.height) * 20;
-        context.fillText(rawText, point.x + offsetX, point.y + offsetY, depth.x);
+        const wsw = this.transform({x:text.w, y:text.sw}, page); 
+        const measureText = context.measureText(rawText);      
+
+        context.fillStyle = color;
+        context.font = font;       
+        context.textAlign = textAlign;        
+        context.textBaseline = 'middle';
+        context.fillText(rawText, point.x, point.y + measureText.actualBoundingBoxAscent + measureText.actualBoundingBoxDescent, wsw.x);
     }
 
     drawPage(pageIndex: number) {
@@ -100,9 +107,9 @@ export class TableParser {
         context.strokeStyle = 'rgba(0,0,0,0.5)';
         context.beginPath();
         const point = this.transform({x:line.x, y:line.y}, page);
-        const depth = this.transform({x:line.w, y:line.l}, page);
+        const wl = this.transform({x:line.w, y:line.l}, page);
         context.lineTo(point.x, point.y);
-        context.lineTo(point.x, point.y + depth.y);
+        context.lineTo(point.x, point.y + wl.y);
         context.stroke();
     }
 
@@ -111,9 +118,9 @@ export class TableParser {
         context.strokeStyle = 'rgba(0,0,0,0.5)';
         context.beginPath();
         const point = this.transform({x:line.x, y:line.y}, page);
-        const depth = this.transform({x:line.w, y:line.l}, page);
+        const wl = this.transform({x:line.w, y:line.l}, page);
         context.lineTo(point.x, point.y);
-        context.lineTo(point.x + depth.y, point.y);
+        context.lineTo(point.x + wl.y, point.y);
         context.stroke();
     }
 
