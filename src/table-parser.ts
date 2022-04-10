@@ -138,7 +138,7 @@ export class TableParser {
     getHeight (lines:Vline[], page:Page) {
         if(lines.length == 0) return 0;
         const linesCopy = [...lines];
-        linesCopy.sort((x,y)=>x.x - y.x);
+        linesCopy.sort((x,y)=>x.y - y.y);
         const line1 = linesCopy[0];
         const line2 = linesCopy[linesCopy.length-1];
         const info1 = this.getLineInfo(line1, page);
