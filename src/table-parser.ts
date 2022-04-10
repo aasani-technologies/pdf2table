@@ -91,6 +91,49 @@ export class TableParser {
         }
     }
 
+    async saveCsvAllPages(filePath: string): Promise<void> {
+
+        const getHeaders = ()=> {
+            const page = this.pdfData.Pages[0];
+            const data = this.detectTable(page).map(row => row.map(col => col.textContent));
+            return data[0];
+        };
+
+        const getRows = (pageIndex:number, headers:string[]) =>{
+            
+            const page = this.pdfData.Pages[pageIndex];
+            const data = this.detectTable(page).map(row => row.map(col => col.textContent));
+            if(pageIndex == 0) data.shift();
+            const rows: any[] = [];
+            for (let row of data) {
+                let index = 0;
+                let rowData = {} as any;
+                for (let col of row) {
+                    rowData[headers[index]] = col;
+                    index++;
+                }
+                rows.push(rowData);
+            }
+            return rows;
+        }
+
+        try {
+            const headers = getHeaders();
+            let rows: any[] = [];
+            for(let i=0; i<this.pdfData.Pages.length; i++) {
+                rows = rows.concat(getRows(i, headers));
+            }
+            
+            const csv = await (json2csvPromise(rows) as Promise<string>);
+            await wrtieFilePromise(filePath, csv);
+            return this.logger.info(`${filePath} saved!`);
+        } catch (err) {
+            return this.logger.error(err);
+        }
+
+        
+    }
+
     getPageCanvas() {        
         const width = this.pageLayout.width * this.pageLayout.resolution;
         const height = this.pageLayout.height  * this.pageLayout.resolution;

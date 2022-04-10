@@ -26,10 +26,12 @@ const runner = async () => {
     const pdfFilePath = `${srcPath}/samples/${filename}.pdf`;
     const jsonFilePath = `${srcPath}/output/${filename}.json`;
     const csvFilePath = `${srcPath}/output/${filename}.csv`;
+    const csvAllFilePath = `${srcPath}/output/${filename}_all.csv`;
     const imageFilePath = `${srcPath}/output/${filename}.png`;
     await parser.loadPdf(pdfFilePath);
     await parser.saveJson(0, jsonFilePath);
     await parser.saveCsv(0, csvFilePath);
+    await parser.saveCsvAllPages(csvAllFilePath);
     await parser.saveImage(0, imageFilePath);
   }
 
