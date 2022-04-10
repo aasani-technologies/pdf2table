@@ -290,18 +290,19 @@ export class TableParser {
     drawPage(pageIndex: number) {
         const canvas = this.getPageCanvas();
         const page = this.pdfData.Pages[pageIndex];
-        page.Texts.forEach(text => this.drawText(canvas, page, text))
-        page.VLines.forEach(line=>this.drawVLine(canvas, page, line));
-        page.HLines.forEach(line=>this.drawHLine(canvas, page, line));
-        this.detectTopHLines(page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,1)'));
-        this.detectLeftVLines(page).forEach(line=>this.drawVLine(canvas, page, line, 'rgba(0,255,0,1)'));
-        this.detectBoxesTransformed(page).forEach(boxArr=>boxArr.forEach(box=> this.drawBox(canvas, box, 'rgba(0,0,255,1)')))
+        // page.Texts.forEach(text => this.drawText(canvas, page, text))
+        // page.VLines.forEach(line=>this.drawVLine(canvas, page, line));
+        // page.HLines.forEach(line=>this.drawHLine(canvas, page, line));
+        // this.detectTopHLines(page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,1)'));
+        // this.detectLeftVLines(page).forEach(line=>this.drawVLine(canvas, page, line, 'rgba(0,255,0,1)'));
+        // this.detectBoxesTransformed(page).forEach(boxArr=>boxArr.forEach(box=> this.drawBox(canvas, box, 'rgba(0,0,255,1)')))
         const table = this.detectTable(page);
-        const row = table[0];
-        const col = row[0];
-        const transformedBox = this.transformBox(col.box, page);
-        this.drawBox(canvas, transformedBox,'rgba(0,0,255,1)');
-        col.texts.forEach(text=>this.drawText(canvas, page, text,'rgba(0,0,255,1)'));
+        table.forEach(row=>row.forEach(col=>{
+            const transformedBox = this.transformBox(col.box, page);
+            this.drawBox(canvas, transformedBox,'rgba(0,0,255,1)');
+            col.texts.forEach(text=>this.drawText(canvas, page, text,'rgba(0,0,255,1)'));
+        }))
+        
         return canvas;
     }
 
