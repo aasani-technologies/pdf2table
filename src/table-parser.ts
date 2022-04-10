@@ -95,9 +95,9 @@ export class TableParser {
         context.fillText(rawText, x, y, maxWidth);
     }
 
-    drawVLine(canvas: Canvas, page:Page, line: Vline) {
+    drawVLine(canvas: Canvas, page:Page, line: Vline, style?:string) {
         const context = canvas.getContext('2d');
-        context.strokeStyle = 'rgba(0,0,0,0.5)';
+        context.strokeStyle = style?style:'rgba(0,0,0,0.5)';
         context.beginPath();
         const { point, wl } = this.getLineInfo(line, page);
         context.lineTo(point.x, point.y);
@@ -135,12 +135,23 @@ export class TableParser {
         return (info2.point.x + info2.wl.y) - info1.point.x;
     }
 
+    getHeight (lines:Vline[], page:Page) {
+        if(lines.length == 0) return 0;
+        const linesCopy = [...lines];
+        linesCopy.sort((x,y)=>x.x - y.x);
+        const line1 = linesCopy[0];
+        const line2 = linesCopy[linesCopy.length-1];
+        const info1 = this.getLineInfo(line1, page);
+        const info2 = this.getLineInfo(line2, page);
+        return (info2.point.y + info2.wl.y) - info1.point.y;
+    }
+
     detectTopHLines(pageIndex:number, page:Page): Hline[] {
         const groupByY = this.pdfData.Pages[pageIndex].HLines.reduce((prev,curr)=>{
             if(!prev[curr.y.toString()]) {
                 prev[curr.y.toString()] = [];
             }
-            prev[curr.y].push(curr);
+            prev[curr.y.toString()].push(curr);
             return prev;
         },{} as any);
         const yList = Object.keys(groupByY).map((value)=>({key:parseFloat(value), value:groupByY[value]}));        
@@ -156,6 +167,34 @@ export class TableParser {
         return result;
     }
 
+    detectLeftVLines(pageIndex:number, page:Page): Vline[] {
+        const groupByX = this.pdfData.Pages[pageIndex].VLines.reduce((prev,curr)=>{
+            if(!prev[curr.x.toString()]) {
+                prev[curr.x.toString()] = [];
+            }
+            const lines:any[] = prev[curr.x.toString()];
+            lines.push(curr);
+            if(lines.length > 2) {
+                const firstLine:Vline = lines[0];
+                const secLine:Vline = lines[1];
+                const firstLineEnd = firstLine.y + firstLine.l;
+                if(firstLineEnd < secLine.y) lines.shift();
+            }
+            return prev;
+        },{} as any);
+        const xList = Object.keys(groupByX).map((value)=>({key:parseFloat(value), value:groupByX[value]}));        
+        xList.sort((x,y)=>{
+            const xLength = this.getHeight(x.value as Vline[], page);
+            const yLength = this.getHeight(y.value as Vline[], page);
+            return xLength - yLength;
+        });
+        const averageLine = xList[Math.floor(xList.length/2)];
+        const averageLineHeight = this.getHeight(averageLine.value as Vline[], page);
+        xList.sort((x,y)=>x.key - y.key);
+        const result = xList.find(v=>this.getHeight(v.value as Vline[],page) == averageLineHeight)?.value;
+        return result;
+    }
+
     drawPage(pageIndex: number) {
         const canvas = this.getPageCanvas();
         const page = this.pdfData.Pages[pageIndex];
@@ -163,6 +202,7 @@ export class TableParser {
         page.VLines.forEach(line=>this.drawVLine(canvas, page, line));
         page.HLines.forEach(line=>this.drawHLine(canvas, page, line));
         this.detectTopHLines(pageIndex, page).forEach(line=>this.drawHLine(canvas, page, line, 'rgba(255,0,0,0.5)'));
+        this.detectLeftVLines(pageIndex, page).forEach(line=>this.drawVLine(canvas, page, line, 'rgba(0,255,0,0.5)'));
         return canvas;
     }
 
