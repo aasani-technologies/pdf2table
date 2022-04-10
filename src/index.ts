@@ -17,7 +17,7 @@ const runner = async () => {
   const srcPath = `C:/Users/Dell/source/repos/pdf2table/`;
 
   //file list
-  const filenames = ['Bank_Of_India_Sample_1', 'Axis_Bank_Sample_1'];
+  const filenames = fs.readdirSync(`${srcPath}/samples/`).map(filename=>filename.split('.')[0]);
 
   //parse files
   for (let filename of filenames) {
