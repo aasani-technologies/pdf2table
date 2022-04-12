@@ -217,6 +217,8 @@ export class TableParser {
     }
 
     detectTopHLines(page:Page): Hline[] {
+        if(!page.HLines || page.HLines.length == 0) return [];
+
         const groupByY = page.HLines.reduce((prev,curr)=>{
             if(!prev[curr.y.toString()]) {
                 prev[curr.y.toString()] = [];
@@ -238,6 +240,8 @@ export class TableParser {
     }
 
     detectLeftVLines(page:Page): Vline[] {
+        if(!page.VLines || page.VLines.length == 0) return [];
+
         const groupByX = page.VLines.reduce((prev,curr)=>{
             if(!prev[curr.x.toString()]) {
                 prev[curr.x.toString()] = [];
