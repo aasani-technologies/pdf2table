@@ -11,29 +11,38 @@ const runner = async () => {
     categories: { default: { appenders: ['console'], level: 'info' } }
   });
 
- 
+
 
   //src folder
   const srcPath = `C:/Users/Dell/source/repos/pdf2table/`;
 
-  //file list
-  const filenames = fs.readdirSync(`${srcPath}/samples/`).map(filename=>filename.split('.')[0]);
+  const subFolders = fs.readdirSync(`${srcPath}/samples/`);
 
-  //parse files
-  for (let filename of filenames) {
-     //init parser
-    const parser = new TableParser(new PDFParser(), log4js.getLogger());
-    const pdfFilePath = `${srcPath}/samples/${filename}.pdf`;
-    const jsonFilePath = `${srcPath}/output/${filename}.json`;
-    const csvFilePath = `${srcPath}/output/${filename}.csv`;
-    const csvAllFilePath = `${srcPath}/output/${filename}_all.csv`;
-    const imageFilePath = `${srcPath}/output/${filename}.png`;
-    await parser.loadPdf(pdfFilePath);
-    await parser.saveJson(0, jsonFilePath);
-    await parser.saveCsv(0, csvFilePath);
-    await parser.saveCsvAllPages(csvAllFilePath);
-    await parser.saveImage(0, imageFilePath);
+  for (let subFolder of subFolders) {
+    //file list
+    const filenames = fs.readdirSync(`${srcPath}/samples/${subFolder}/`).map(filename => filename.split('.')[0]);
+
+    //parse files
+    for (let filename of filenames) {
+      if(!fs.existsSync(`${srcPath}/output/${subFolder}/`)) 
+        fs.mkdirSync(`${srcPath}/output/${subFolder}/`);
+
+      //init parser
+      const parser = new TableParser(new PDFParser(), log4js.getLogger());
+      const pdfFilePath = `${srcPath}/samples/${subFolder}/${filename}.pdf`;
+      const jsonFilePath = `${srcPath}/output/${subFolder}/${filename}.json`;
+      const csvFilePath = `${srcPath}/output/${subFolder}/${filename}.csv`;
+      const csvAllFilePath = `${srcPath}/output/${subFolder}/${filename}_all.csv`;
+      const imageFilePath = `${srcPath}/output/${subFolder}/${filename}.png`;
+      await parser.loadPdf(pdfFilePath);
+      //await parser.saveJson(0, jsonFilePath);
+      //await parser.saveCsv(0, csvFilePath);
+      await parser.saveCsvAllPages(csvAllFilePath);
+      await parser.saveImage(0, imageFilePath);
+    }
   }
+
+
 
 }
 
