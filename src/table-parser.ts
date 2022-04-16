@@ -44,6 +44,8 @@ export class TableParser {
             this.pdfParser.on("pdfParser_dataReady", pdfData => {
                 this.pdfData = pdfData;
                 this.logger.info(`${filePath} pdfParser_dataReady!`);
+                this.logger.info(JSON.stringify(this.pdfData.Meta));
+                this.logger.info(JSON.stringify(this.pdfData.Transcoder));
                 resolve();
             });
 
