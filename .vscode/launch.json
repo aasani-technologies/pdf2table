@@ -6,7 +6,7 @@
             "type": "node",
             "request": "launch",
             "name": "Build Project",
-            "program": "${workspaceFolder}\\src\\index.ts",
+            "program": "${workspaceFolder}\\src\\main.ts",
             "preLaunchTask": "npm: compile",
             "sourceMaps": true,
             "smartStep": true,
