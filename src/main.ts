@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as log4js from 'log4js';
 import PDFParser from "pdf2json";
-import { TableParser } from '.';
+import { IPdfTableParser, LatticePdfTableParser } from '.';
 
 
 
@@ -34,12 +34,12 @@ const runner = async () => {
         const csvFilePath = `${srcPath}/output/${subFolder}/${filename}.csv`;
         const csvAllFilePath = `${srcPath}/output/${subFolder}/${filename}_all.csv`;
         const imageFilePath = `${srcPath}/output/${subFolder}/${filename}.png`;
-        const parser = new TableParser(new PDFParser(), log4js.getLogger());
+        const parser = new LatticePdfTableParser(new PDFParser(), log4js.getLogger());
         await parser.loadPdf(pdfFilePath);
-        //await parser.saveJson(0, jsonFilePath);
-        //await parser.saveCsv(0, csvFilePath);
-        await parser.saveCsvAllPages(csvAllFilePath);
-        await parser.saveImage(0, imageFilePath);
+        await parser.saveJsonPage(0, jsonFilePath);
+        await parser.saveCsvPage(0, csvFilePath);
+        await parser.saveCsv(csvAllFilePath);
+        await parser.saveImagePage(0, imageFilePath);
         
       }
     }

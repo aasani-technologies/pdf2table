@@ -1,39 +1,39 @@
-import * as fs from 'fs'
 import PDFParser from "pdf2json";
 import { Logger } from "log4js";
+import { createCanvas, Canvas } from 'canvas';
+import * as fs from 'fs'
 import { promisify } from 'util';
-import { createCanvas, CanvasRenderingContext2D, Canvas } from 'canvas';
-import { PdfData, Text, Vline, Page, Hline } from './interfaces/pdf-data';
-import { Box, Point } from './interfaces/shape';
 import converter from 'json-2-csv';
+import {
+    PdfData,
+    Text,
+    Vline,
+    Page,
+    Hline,
+    Box,
+    Point,
+    PageLayout,
+    IPdfTableParser
+} from './interfaces';
+
+
 const json2csvPromise = promisify(converter.json2csv);
 const wrtieFilePromise = promisify(fs.writeFile);
 
-export interface PageLayout {
-    width: number;
-    height: number;
-    resolution: number;
-}
+export class LatticePdfTableParser implements IPdfTableParser {
 
-export class TableParser {
-
-    pdfData: PdfData;
-    pageLayout: PageLayout = {
+    private pdfData: PdfData;
+    private  pageLayout: PageLayout = {
         width: 8,
         height: 12,
         resolution: 96
-    }
+    };
 
     constructor(private pdfParser: PDFParser, private logger: Logger) {
         this.pdfData = {} as PdfData;
     }
 
-    transform(data: { x: number, y: number }, page: Page) {
-        return ({
-            x: data.x * ((this.pageLayout.width * this.pageLayout.resolution) / page.Width),
-            y: data.y * ((this.pageLayout.height * this.pageLayout.resolution) / page.Height)
-        });
-    }
+
 
     loadPdf(filePath: string): Promise<void> {
         const result = new Promise<void>((resolve, reject) => {
@@ -55,24 +55,66 @@ export class TableParser {
                     this.logger.error(err);
                     reject(err);
                 });
-        })
+        });
 
         return result;
     }
 
-    async saveJson(pageIndex: number, filePath: string): Promise<void> {
+    async saveCsv(filePath: string): Promise<void> {
+
+        let rows = this.fetchRows();
+        const csv = await (json2csvPromise(rows) as Promise<string>);
+        await wrtieFilePromise(filePath, csv);
+        return this.logger.info(`${filePath} saved!`);
+
+
+    }
+
+    fetchRows() {
+        const headers = this.getHeaders();
+        let rows: any[] = [];
+        for (let i = 0; i < this.pdfData.Pages.length; i++) {
+            rows = rows.concat(this.getRows(i, headers));
+        }
+        return rows;
+    }
+
+    async saveJsonPage(pageIndex: number, filePath: string): Promise<void> {
         const page = this.pdfData.Pages[pageIndex];
         await wrtieFilePromise(filePath, JSON.stringify(this.detectTable(page)));
         return this.logger.info(`${filePath} saved!`);
     }
 
-    getHeaders() {
+    async saveCsvPage(pageIndex: number, filePath: string): Promise<void> {
+
+        const headers = this.getHeaders();
+        const rows = this.getRows(pageIndex, headers);
+        const csv = await (json2csvPromise(rows) as Promise<string>);
+        await wrtieFilePromise(filePath, csv);
+        return this.logger.info(`${filePath} saved!`);
+    }
+
+    async saveImagePage(pageIndex: number, filePath: string): Promise<void> {
+        const canvas = this.drawPage(pageIndex);
+        const buffer = canvas.toBuffer('image/png');
+        await wrtieFilePromise(filePath, buffer);
+        return this.logger.info(`${filePath} saved!`);
+    }
+
+    private transform(data: { x: number; y: number; }, page: Page) {
+        return ({
+            x: data.x * ((this.pageLayout.width * this.pageLayout.resolution) / page.Width),
+            y: data.y * ((this.pageLayout.height * this.pageLayout.resolution) / page.Height)
+        });
+    }
+
+    private getHeaders() {
         const page = this.pdfData.Pages[0];
         const data = this.detectTable(page).map(row => row.map(col => col.textContent));
         return data[0];
     };
 
-    getRows(pageIndex: number, headers: string[]) {
+    private getRows(pageIndex: number, headers: string[]) {
 
         const page = this.pdfData.Pages[pageIndex];
         const data = this.detectTable(page).map(row => row.map(col => col.textContent));
@@ -91,45 +133,17 @@ export class TableParser {
         return rows;
     };
 
-    async saveCsv(pageIndex: number, filePath: string): Promise<void> {
-
-        const headers = this.getHeaders();
-        const rows = this.getRows(0, headers)
-        const csv = await (json2csvPromise(rows) as Promise<string>);
-        await wrtieFilePromise(filePath, csv);
-        return this.logger.info(`${filePath} saved!`);
-    }
-
-    async saveCsvAllPages(filePath: string): Promise<void> {
-
-        let rows = this.getAllRows();
-        const csv = await (json2csvPromise(rows) as Promise<string>);
-        await wrtieFilePromise(filePath, csv);
-        return this.logger.info(`${filePath} saved!`);
-
-
-    }
-
-    getAllRows() {
-        const headers = this.getHeaders();
-        let rows: any[] = [];
-        for (let i = 0; i < this.pdfData.Pages.length; i++) {
-            rows = rows.concat(this.getRows(i, headers));
-        }
-        return rows;
-    }
-
-    getPageCanvas() {
+    private getPageCanvas() {
         const width = this.pageLayout.width * this.pageLayout.resolution;
         const height = this.pageLayout.height * this.pageLayout.resolution;
         const canvas = createCanvas(width, height);
         const context = canvas.getContext('2d');
-        context.fillStyle = '#ffffff'
+        context.fillStyle = '#ffffff';
         context.fillRect(0, 0, width, height);
         return canvas;
     }
 
-    drawText(canvas: Canvas, page: Page, text: Text, color?: string) {
+    private drawText(canvas: Canvas, page: Page, text: Text, color?: string) {
         const context = canvas.getContext('2d');
         const r = text.R[0];
         const fontSize = r.TS[1];
@@ -150,7 +164,7 @@ export class TableParser {
         context.fillText(rawText, x, y, maxWidth);
     }
 
-    drawVLine(canvas: Canvas, page: Page, line: Vline, style?: string) {
+    private drawVLine(canvas: Canvas, page: Page, line: Vline, style?: string) {
         const context = canvas.getContext('2d');
         context.strokeStyle = style ? style : 'rgba(0,0,0,0.5)';
         context.beginPath();
@@ -160,7 +174,7 @@ export class TableParser {
         context.stroke();
     }
 
-    drawHLine(canvas: Canvas, page: Page, line: Hline, style?: string) {
+    private drawHLine(canvas: Canvas, page: Page, line: Hline, style?: string) {
         const context = canvas.getContext('2d');
         context.strokeStyle = style ? style : 'rgba(0,0,0,0.5)';
         context.beginPath();
@@ -170,7 +184,7 @@ export class TableParser {
         context.stroke();
     }
 
-    getLineInfo(line: Hline, page: Page) {
+    private getLineInfo(line: Hline, page: Page) {
         const point = this.transform({ x: line.x - (line.w / 2), y: line.y - (line.w / 2) }, page);
         const wl = this.transform({ x: line.w, y: line.l }, page);
         return {
@@ -179,8 +193,9 @@ export class TableParser {
         };
     }
 
-    getLength(lines: Hline[], page: Page) {
-        if (lines.length == 0) return 0;
+    private getLength(lines: Hline[], page: Page) {
+        if (lines.length == 0)
+            return 0;
         const linesCopy = [...lines];
         linesCopy.sort((x, y) => x.x - y.x);
         const line1 = linesCopy[0];
@@ -190,8 +205,9 @@ export class TableParser {
         return (info2.point.x + info2.wl.y) - info1.point.x;
     }
 
-    getHeight(lines: Vline[], page: Page) {
-        if (lines.length == 0) return 0;
+    private getHeight(lines: Vline[], page: Page) {
+        if (lines.length == 0)
+            return 0;
         const linesCopy = [...lines];
         linesCopy.sort((x, y) => x.y - y.y);
         const line1 = linesCopy[0];
@@ -201,8 +217,9 @@ export class TableParser {
         return (info2.point.y + info2.wl.y) - info1.point.y;
     }
 
-    detectTopHLines(page: Page): Hline[] {
-        if (!page.HLines || page.HLines.length == 0) return [];
+    private detectTopHLines(page: Page): Hline[] {
+        if (!page.HLines || page.HLines.length == 0)
+            return [];
 
         const groupByY = page.HLines.reduce((prev, curr) => {
             if (!prev[curr.y.toString()]) {
@@ -224,8 +241,9 @@ export class TableParser {
         return result;
     }
 
-    detectLeftVLines(page: Page): Vline[] {
-        if (!page.VLines || page.VLines.length == 0) return [];
+    private detectLeftVLines(page: Page): Vline[] {
+        if (!page.VLines || page.VLines.length == 0)
+            return [];
 
         const groupByX = page.VLines.reduce((prev, curr) => {
             if (!prev[curr.x.toString()]) {
@@ -237,7 +255,8 @@ export class TableParser {
                 const firstLine = lines[0];
                 const secLine = lines[1];
                 const firstLineEnd = firstLine.y + firstLine.l;
-                if (firstLineEnd < secLine.y) lines.shift();
+                if (firstLineEnd < secLine.y)
+                    lines.shift();
             }
             return prev;
         }, {} as any);
@@ -254,23 +273,23 @@ export class TableParser {
         return result;
     }
 
-    detectBoxes(page: Page) {
+    private detectBoxes(page: Page) {
         var hlines = this.detectTopHLines(page);
         var vlines = this.detectLeftVLines(page);
         const boxes: Box[][] = [];
         for (let vline of vlines) {
             const row: Box[] = [];
             for (let hline of hlines) {
-                row.push({ x: hline.x - (hline.w / 2), y: vline.y - (hline.w / 2), w: hline.l, h: vline.l })
+                row.push({ x: hline.x - (hline.w / 2), y: vline.y - (hline.w / 2), w: hline.l, h: vline.l });
             }
             row.sort((x, y) => x.x - y.x);
-            boxes.push(row)
+            boxes.push(row);
         }
         boxes.sort((x, y) => x[0].y - y[0].y);
         return boxes;
     }
 
-    detectBoxesTransformed(page: Page): Box[][] {
+    private detectBoxesTransformed(page: Page): Box[][] {
         var boxesArr = this.detectBoxes(page);
         return boxesArr.map(boxes => boxes.map(box => {
             return this.transformBox(box, page);
@@ -284,12 +303,12 @@ export class TableParser {
     }
 
 
-    detectTable(page: Page) {
+    private detectTable(page: Page) {
         const boxesArr = this.detectBoxes(page);
         const texts = page.Texts;
-        const table: { box: Box, texts: Text[], textContent: string }[][] = []
+        const table: { box: Box; texts: Text[]; textContent: string; }[][] = [];
         for (let boxes of boxesArr) {
-            const row: { box: Box, texts: Text[], textContent: string }[] = [];
+            const row: { box: Box; texts: Text[]; textContent: string; }[] = [];
             for (let box of boxes) {
 
 
@@ -308,18 +327,18 @@ export class TableParser {
                 const textContent = textArr.map(text => decodeURIComponent(text.R[0].T).trim()).join(' ');
                 row.push({ box, texts: textArr, textContent });
             }
-            table.push(row)
+            table.push(row);
         }
         return table;
     }
 
-    drawBox(canvas: Canvas, box: Box, style?: string) {
+    private drawBox(canvas: Canvas, box: Box, style?: string) {
         const context = canvas.getContext('2d');
-        context.strokeStyle = style ? style : '#000000'
+        context.strokeStyle = style ? style : '#000000';
         context.strokeRect(box.x, box.y, box.w, box.h);
     }
 
-    drawPage(pageIndex: number) {
+    private drawPage(pageIndex: number) {
         const canvas = this.getPageCanvas();
         const page = this.pdfData.Pages[pageIndex];
         // page.Texts.forEach(text => this.drawText(canvas, page, text))
@@ -333,15 +352,8 @@ export class TableParser {
             const transformedBox = this.transformBox(col.box, page);
             this.drawBox(canvas, transformedBox, 'rgba(0,0,255,1)');
             col.texts.forEach(text => this.drawText(canvas, page, text, 'rgba(0,0,255,1)'));
-        }))
+        }));
 
         return canvas;
-    }
-
-    async saveImage(pageIndex: number, filePath: string): Promise<void> {
-        const canvas = this.drawPage(pageIndex);
-        const buffer = canvas.toBuffer('image/png');
-        await wrtieFilePromise(filePath, buffer);
-        return this.logger.info(`${filePath} saved!`);
     }
 }
