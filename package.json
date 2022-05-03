@@ -1,13 +1,13 @@
 {
   "name": "pdf2table",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "description": "",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "type": "commonjs",
   "files": [
-    "dist"
+    "build"
   ],
   "license": "Apache-2.0",
   "keywords": [],
@@ -19,7 +19,7 @@
     "clean": "gts clean",
     "compile": "tsc",
     "prestart": "npm.cmd run compile",
-    "start": "node dist/main.js",
+    "start": "node build/main.js",
     "fix": "gts fix",
     "prepare": "npm.cmd run compile",
     "pretest": "npm.cmd run compile",
