@@ -1,5 +1,5 @@
 {
-  "name": "pdf2table",
+  "name": "@aasani-technologies/pdf2table",
   "version": "1.0.6",
   "private": true,
   "description": "",
@@ -11,6 +11,10 @@
   ],
   "license": "Apache-2.0",
   "keywords": [],
+  "publishConfig": {
+		"access": "restricted",
+		"registry": "https://npm.pkg.github.com/"
+	},
   "repository": {
     "type": "git",
     "url": "https://github.com/aasani-technologies/pdf2table.git"
