@@ -1,3 +1,25 @@
 {
-  "extends": "./node_modules/gts/"
+  "extends": "./node_modules/gts/",
+  "rules": {
+    "eqeqeq": "off",
+    "no-unused-vars": "off",
+    "no-undef": "off",
+    "node/no-unpublished-require": [
+      "error",
+      {
+        "allowModules": [
+          "jest"
+        ]
+      }
+    ],
+    "node/no-unpublished-import": [
+      "error",
+      {
+        "allowModules": [
+          "jest"
+        ]
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "off"
+  }
 }
