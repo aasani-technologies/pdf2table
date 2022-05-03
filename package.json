@@ -1,6 +1,6 @@
 {
-  "name": "table2tnx",
-  "version": "1.0.0",
+  "name": "pdf2table",
+  "version": "1.0.2",
   "private": true,
   "description": "",
   "main": "dist/index.js",
