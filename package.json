@@ -1,6 +1,6 @@
 {
   "name": "pdf2table",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "",
   "main": "build/index.js",
@@ -17,6 +17,7 @@
     "test:watch": "jest --watch",
     "lint": "gts lint",
     "clean": "gts clean",
+    "precompile":"npm run clean && npm run fix",
     "compile": "tsc",
     "prestart": "npm.cmd run compile",
     "start": "node build/main.js",
