@@ -1,2 +1,2 @@
 export * from './interfaces';
-export * from './LatticePdfTableParser';
+export * from './parser';
