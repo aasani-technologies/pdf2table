@@ -14,7 +14,7 @@ import {
     Point,
     PageLayout,
     IPdfTableParser
-} from './interfaces';
+} from '../interfaces';
 
 
 const json2csvPromise = promisify(converter.json2csv);
