@@ -1,7 +1,6 @@
 {
   "name": "@aasani-technologies/pdf2table",
-  "version": "1.0.6",
-  "private": true,
+  "version": "1.0.6",  
   "description": "",
   "main": "build/index.js",
   "types": "build/index.d.ts",
