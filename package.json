@@ -19,7 +19,7 @@
     "url": "https://github.com/aasani-technologies/pdf2table.git"
   },
   "scripts": {
-    "tsc": "./node_modules/typescript/bin/tsc",
+    "tsc": "cd node_modules/typescript/bin && node tsc",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "lint": "gts lint",
