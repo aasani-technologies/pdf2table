@@ -20,6 +20,6 @@ gulp.task('default', () => {
         })
       )
       .pipe(sourcemaps.write())
-      .pipe(gulp.dest('build'))
+      .pipe(gulp.dest('build')),
   ]);
 });

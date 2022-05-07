@@ -21,14 +21,24 @@ const wrtieFilePromise = promisify(fs.writeFile);
 
 export class LatticePdfTableParser implements IPdfTableParser {
   private pdfData: PdfData;
-  private pageLayout: PageLayout = {
-    width: 8,
-    height: 12,
-    resolution: 96,
-  };
+  private pageLayout: PageLayout;
 
-  constructor(private pdfParser: PDFParser, private logger: Logger) {
-    this.pdfData = {} as PdfData;
+  static get PAGE_LAYOUT() {
+    return {
+      width: 8,
+      height: 12,
+      resolution: 96,
+    };
+  }
+
+  constructor(
+    private pdfParser: PDFParser,
+    private logger: Logger,
+    pdfData: PdfData | null = null,
+    pageLayout: PageLayout | null = null
+  ) {
+    this.pdfData = pdfData || ({} as PdfData);
+    this.pageLayout = pageLayout || LatticePdfTableParser.PAGE_LAYOUT;
   }
 
   loadPdf(filePath: string): Promise<void> {
