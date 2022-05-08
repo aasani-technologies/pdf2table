@@ -1,9 +1,8 @@
 import PDFParser from 'pdf2json';
 import {Logger} from 'log4js';
 import {createCanvas, Canvas} from 'canvas';
-import * as fs from 'fs';
-import {promisify} from 'util';
-import converter from 'json-2-csv';
+import { promises as fs } from 'fs';
+import {json2csvAsync} from 'json-2-csv';
 import {
   PdfData,
   Text,
@@ -16,8 +15,7 @@ import {
   IPdfTableParser,
 } from '../interfaces';
 
-const json2csvPromise = promisify(converter.json2csv);
-const wrtieFilePromise = promisify(fs.writeFile);
+
 
 export class LatticePdfTableParser implements IPdfTableParser {
   private pdfData: PdfData;
@@ -69,8 +67,8 @@ export class LatticePdfTableParser implements IPdfTableParser {
 
   async saveCsv(filePath: string): Promise<void> {
     const rows = this.fetchRows();
-    const csv = await (json2csvPromise(rows) as Promise<string>);
-    await wrtieFilePromise(filePath, csv);
+    const csv = await json2csvAsync(rows);
+    await fs.writeFile(filePath, csv);
     return this.logger.info(`${filePath} saved!`);
   }
 
@@ -85,22 +83,22 @@ export class LatticePdfTableParser implements IPdfTableParser {
 
   async saveJsonPage(pageIndex: number, filePath: string): Promise<void> {
     const page = this.pdfData.Pages[pageIndex];
-    await wrtieFilePromise(filePath, JSON.stringify(this.detectTable(page)));
+    await fs.writeFile(filePath, JSON.stringify(this.detectTable(page)));
     return this.logger.info(`${filePath} saved!`);
   }
 
   async saveCsvPage(pageIndex: number, filePath: string): Promise<void> {
     const headers = this.getHeaders();
     const rows = this.getRows(pageIndex, headers);
-    const csv = await (json2csvPromise(rows) as Promise<string>);
-    await wrtieFilePromise(filePath, csv);
+    const csv = await json2csvAsync(rows);
+    await fs.writeFile(filePath, csv);
     return this.logger.info(`${filePath} saved!`);
   }
 
   async saveImagePage(pageIndex: number, filePath: string): Promise<void> {
     const canvas = this.drawPage(pageIndex);
     const buffer = canvas.toBuffer('image/png');
-    await wrtieFilePromise(filePath, buffer);
+    await fs.writeFile(filePath, buffer);
     return this.logger.info(`${filePath} saved!`);
   }
 
