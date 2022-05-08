@@ -1,7 +1,7 @@
 import PDFParser from 'pdf2json';
 import {Logger} from 'log4js';
 import {createCanvas, Canvas} from 'canvas';
-import { promises as fs } from 'fs';
+import {promises as fs} from 'fs';
 import {json2csvAsync} from 'json-2-csv';
 import {
   PdfData,
@@ -14,8 +14,6 @@ import {
   PageLayout,
   IPdfTableParser,
 } from '../interfaces';
-
-
 
 export class LatticePdfTableParser implements IPdfTableParser {
   private pdfData: PdfData;

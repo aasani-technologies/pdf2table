@@ -4,6 +4,7 @@
     "eqeqeq": "off",
     "no-unused-vars": "off",
     "no-undef": "off",
+    "node/no-unsupported-features/node-builtins": "off",
     "node/no-unpublished-require": [
       "error",
       {
