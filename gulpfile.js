@@ -4,22 +4,28 @@ const ts = require('gulp-typescript');
 const tsProject = ts.createProject('tsconfig.json');
 const merge = require('merge2');
 const sourcemaps = require('gulp-sourcemaps');
+const isProduction =
+  (process.env.NODE_ENV || 'development').trim().toLowerCase() === 'production';
 
 gulp.task('default', () => {
-  const tsResult = tsProject.src().pipe(sourcemaps.init()).pipe(tsProject());
+  const tsProjectResult = tsProject
+    .src()
+    .pipe(sourcemaps.init())
+    .pipe(tsProject());
 
-  return merge([
-    tsResult.dts.pipe(gulp.dest('build')),
-    tsResult.js
-      .pipe(
-        minify({
-          ext: {
-            min: '.js',
-          },
-          noSource: true,
-        })
-      )
-      .pipe(sourcemaps.write())
-      .pipe(gulp.dest('build')),
-  ]);
+  let jsResult = tsProjectResult.js;
+  if (isProduction) {
+    jsResult = jsResult.pipe(
+      minify({
+        ext: {
+          min: '.js',
+        },
+        noSource: true,
+      })
+    );
+  }
+  jsResult = jsResult.pipe(sourcemaps.write()).pipe(gulp.dest('build'));
+
+  const tsResult = tsProjectResult.dts.pipe(gulp.dest('build'));
+  return merge([tsResult, jsResult]);
 });
