@@ -81,7 +81,7 @@ export class LatticePdfTableParser implements IPdfTableParser {
 
   async saveJsonPage(pageIndex: number, filePath: string): Promise<void> {
     const page = this.pdfData.Pages[pageIndex];
-    await fs.writeFile(filePath, JSON.stringify(this.detectTable(page)));
+    await fs.writeFile(filePath, JSON.stringify(this.detectTable(page), null, 4));
     return this.logger.info(`${filePath} saved!`);
   }
 
